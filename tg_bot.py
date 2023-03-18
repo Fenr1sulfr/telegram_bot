@@ -31,7 +31,7 @@ async def start(msg: types.Message):
     chat_type = msg.chat.type
     
     if chat_type != 'private': # Если это личное сообщение
-        await msg.answer("Тестинг #2")
+        await msg.answer("Тестинг #3")
     else:
         kb_start = types.InlineKeyboardMarkup()
         kb_start_gop = types.InlineKeyboardButton(text="Информация про ГОП", callback_data="GOP")
