@@ -16,9 +16,11 @@ from aiogram.utils import exceptions
 import sqlite3
 from infos import *
 from getAnswer import *
+import os
+from djantimat.helpers import PymorphyProc
 
 
-bot = Bot(token="5995233128:AAHD38e8sj8Mo_yCzIPlAvWUvPcQeUsHdQA")
+bot = Bot(token=os.getenv("TOKEN"))
 # Диспетчер для бота
 storage = MemoryStorage()
 dp = Dispatcher(bot, storage=MemoryStorage())
@@ -125,6 +127,10 @@ async def opshki(call: types.CallbackQuery):
     keyboard.add(global_kb_back_ent)
     key = call.data
     await call.message.edit_text(f"{ent_info[key]}", reply_markup=keyboard, parse_mode = 'HTML', disable_web_page_preview=True)
+@dp.message_handler()
+async def badWordsFilter(message:types.Message):
+    if PymorphyProc.test(message.text):
+        await bot.send_message("Иди нахуй")
 
 if __name__ == "__main__":
     executor.start_polling(dp, skip_updates=True)
