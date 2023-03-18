@@ -4,7 +4,6 @@ import logging
 import string
 from time import sleep
 import aiogram.utils.markdown as md
-from aiogram import types
 from aiogram import Bot, Dispatcher, types, executor
 from aiogram.types import ReplyKeyboardRemove, \
     ReplyKeyboardMarkup, KeyboardButton, \
@@ -13,35 +12,61 @@ from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Text
 from aiogram.dispatcher.filters.state import State, StatesGroup
+from aiogram.types import ContentType
+from aiogram.types import InputMediaPhoto, InputMediaVideo, InputMediaAudio
 from aiogram.types import ParseMode
 from aiogram.utils import exceptions
 import sqlite3
 from infos import *
 from getAnswer import *
+from mailing_keyboard import *
+from mailing_states import *
+from app import *
 import os
 
 
-bot = Bot(token=os.getenv("TOKEN"))
-# Диспетчер для бота
-storage = MemoryStorage()
-dp = Dispatcher(bot, storage=MemoryStorage())
-# Включаем логирование, чтобы не пропустить важные сообщения
-logging.basicConfig(level=logging.INFO)
+
+# bot = Bot(token="5995233128:AAHD38e8sj8Mo_yCzIPlAvWUvPcQeUsHdQA")
+# # Диспетчер для бота
+# storage = MemoryStorage()
+# dp = Dispatcher(bot, storage=MemoryStorage())
+# # Включаем логирование, чтобы не пропустить важные сообщения
+# logging.basicConfig(level=logging.INFO)
+# db = SQLighter('db.db')
+# ADMIN_ID = [448066464, 936574288]
 
 
 @dp.message_handler(commands='start')
 async def start(msg: types.Message):
     chat_type = msg.chat.type
-    
-    if chat_type != 'private': # Если это личное сообщение
-        await msg.answer("Тестим смс комитты")
+    if chat_type != 'private': # Если это группа сообщение
+        await msg.answer("Тестим смс комитты", reply_markup = kb_groups)
     else:
         kb_start = types.InlineKeyboardMarkup()
         kb_start_gop = types.InlineKeyboardButton(text="Информация про ГОП", callback_data="GOP")
         kb_start_faq = types.InlineKeyboardButton(text="Часто задаваемые вопросы", callback_data='faq')
         kb_start.add(kb_start_gop, kb_start_faq)
         await msg.answer(f"Привет, {msg.from_user.first_name}!", reply_markup=kb_start)
-    # conn.close()
+
+    if(not db.subscriber_exists(msg.from_user.id)):
+        db.add_subscriber(msg.from_user.id)
+    else:
+        db.update_subscription(msg.from_user.id, True)
+
+
+@dp.message_handler(commands=['mailing'])
+async def go(message: types.Message):
+    chat_type = message.chat.type
+    if chat_type != 'private':
+        return
+    else:
+        if message.from_user.id in ADMIN_ID:
+            await message.answer("Вы хотите отправить только текст или текст с фото?", reply_markup=kb_mailing)
+        else:
+            return
+
+
+
 
 @dp.callback_query_handler(text="back")
 async def back(call: types.CallbackQuery):
@@ -128,20 +153,25 @@ async def opshki(call: types.CallbackQuery):
     keyboard.add(global_kb_back_ent)
     key = call.data
     await call.message.edit_text(f"{ent_info[key]}", reply_markup=keyboard, parse_mode = 'HTML', disable_web_page_preview=True)
-@dp.message_handler()
-async def badWordsFilter(message:types.Message):
-     if{i.lower().translate(str.maketrans('','',string.punctuation)) for i in message.text.split(' ')}\
-         .intersection(set(json.load(open('badword.json')))):
-         await message.reply("Не ругайся,обалдуй")
-
-     bot.restrict_chat_member(message.chat.id,message.from_user.id,types.ChatPermissions(can_send_messages=False))#мут
-     if message.text=="спасибо":
-         await message.reply(getAnswer("Говно",'A4'))
 
 
+# @dp.message_handler()
+# async def badWordsFilter(message:types.Message):
+#      if{i.lower().translate(str.maketrans('','',string.punctuation)) for i in message.text.split(' ')}\
+#          .intersection(set(json.load(open('badword.json')))):
+#          await message.reply("Не ругайся,обалдуй")
 
-if __name__ == "__main__":
-    executor.start_polling(dp, skip_updates=True)
+#      bot.restrict_chat_member(message.chat.id,message.from_user.id,types.ChatPermissions(can_send_messages=False))#мут
+#      if message.text=="спасибо":
+#          await message.reply(getAnswer("Говно",'A4'))
+
+#ставит дефолт команды
+async def on_startup(dp):
+    from set_commands import set_default_commands
+    await set_default_commands(dp)
+
+if __name__ ==  '__main__':
+    executor.start_polling(dp, skip_updates=True, on_startup=on_startup)
 
 
 
