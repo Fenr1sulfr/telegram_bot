@@ -1,5 +1,7 @@
 import asyncio
+import json
 import logging
+import string
 from time import sleep
 import aiogram.utils.markdown as md
 from aiogram import types
@@ -17,7 +19,6 @@ import sqlite3
 from infos import *
 from getAnswer import *
 import os
-from djantimat.helpers import PymorphyProc
 
 
 bot = Bot(token=os.getenv("TOKEN"))
@@ -99,7 +100,7 @@ async def aet(call: types.CallbackQuery):
     kb_aet.add(kb_aet_money, kb_aet_material, kb_aet_certificate)
     kb_aet.add(global_kb_back_faq)
     key = call.data
-    await call.message.edit_text(f"{getAnswer('Говно', 'A1')}", reply_markup=kb_aet,parse_mode= 'HTML', disable_web_page_preview=True)
+    await call.message.edit_text(f"{getAnswer('Говно', 'A2')}", reply_markup=kb_aet,parse_mode= 'HTML', disable_web_page_preview=True)
 
 
 @dp.callback_query_handler(lambda call: call.data in ['aet_money', 'aet_material', 'aet_certificate'])
@@ -129,8 +130,15 @@ async def opshki(call: types.CallbackQuery):
     await call.message.edit_text(f"{ent_info[key]}", reply_markup=keyboard, parse_mode = 'HTML', disable_web_page_preview=True)
 @dp.message_handler()
 async def badWordsFilter(message:types.Message):
-    if PymorphyProc.test(message.text):
-        await bot.send_message("Иди нахуй")
+     if{i.lower().translate(str.maketrans('','',string.punctuation)) for i in message.text.split(' ')}\
+         .intersection(set(json.load(open('badword.json')))):
+         await message.reply("Не ругайся,обалдуй")
+
+     bot.restrict_chat_member(message.chat.id,message.from_user.id,types.ChatPermissions(can_send_messages=False))#мут
+     if message.text=="спасибо":
+         await message.reply(getAnswer("Говно",'A4'))
+
+
 
 if __name__ == "__main__":
     executor.start_polling(dp, skip_updates=True)
