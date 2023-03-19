@@ -20,3 +20,11 @@ kb_mailing = types.InlineKeyboardMarkup(row_width=2)
 btn_text = types.InlineKeyboardButton(text="Только текст", callback_data="mailing_text")
 btn_photo = types.InlineKeyboardButton(text="Текст с фото", callback_data="mailing_photo")
 kb_mailing.add(btn_text, btn_photo)
+
+mailing_otmena = types.InlineKeyboardMarkup()
+otmena = types.InlineKeyboardButton(text="Отменить", callback_data="stop")
+mailing_otmena.add(otmena)
+
+mailing_delete = types.InlineKeyboardMarkup()
+delete = types.InlineKeyboardButton(text="Удалить", callback_data="delete")
+mailing_delete.add(delete)
