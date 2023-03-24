@@ -67,8 +67,6 @@ async def warning_to_zero(user_id):
 async def update_sheet():
     cursor.execute("SELECT user_id, first_name, count, last_warned, message_text FROM warnings")
     rows = cursor.fetchall()
-
-
     # Iterate through the rows and insert the values into the worksheet
     for row_index, row in enumerate(rows):
         for col_index, value in enumerate(row):
