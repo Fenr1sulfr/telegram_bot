@@ -24,57 +24,9 @@ from mailing_states import *
 from app import *
 import os
 from datetime import datetime, timedelta
-
-import pygsheets
-
-client = pygsheets.authorize()
-sh = client.open('AITU_Answers')
-worksheet = sh.worksheet_by_title("Заключенные")
-
-
-
-import sqlite3
-
-
-conn = sqlite3.connect('warnings.db')
-cursor = conn.cursor()
-
-cursor.execute('''
-CREATE TABLE IF NOT EXISTS warnings (
-    user_id INTEGER PRIMARY KEY,
-    count INTEGER,
-    last_warned TIMESTAMP DEFAULT NULL
-)
-''')
-conn.commit()
-
-
-WARNING_LIMIT = 3  d
-MUTE_DURATION = 1 
-
-def get_warning_count(user_id):
-    cursor.execute('SELECT count FROM warnings WHERE user_id = ?', (user_id,))
-    result = cursor.fetchone()
-    if result:
-        return result[0]
-    else:
-        return 0
-
-def increment_warning_count(user_id):
-    current_time = datetime.now()
-    warning_count = get_warning_count(user_id) + 1
-    cursor.execute('''
-        INSERT OR REPLACE INTO warnings (user_id, count, last_warned)
-        VALUES (?, ?, ?)
-    ''', (user_id, warning_count, current_time))
-    conn.commit()
-
-async def mute_user(chat_id, user_id):
-    mute_time = datetime.now() + timedelta(days=MUTE_DURATION)
-    await bot.restrict_chat_member(chat_id, user_id,
-                                   types.ChatPermissions(can_send_messages=False),
-                                   until_date=mute_time.timestamp())
-
+import pandas as pd
+import matplotlib.pyplot as plt
+from warning_db import *
 
 @dp.callback_query_handler(text = "delete")
 async def mailing_delete(call: types.CallbackQuery):
@@ -82,7 +34,7 @@ async def mailing_delete(call: types.CallbackQuery):
 
 @dp.message_handler(commands='start')
 async def start(msg: types.Message):
-    if msg.chat.type != 'private': # Если это группа сообщение
+    if msg.chat.type != 'private': # Если это не личное сообщение
         await msg.answer("Данную команду нужно использовать в лс!")
     else:
         kb_start = types.InlineKeyboardMarkup()
@@ -97,17 +49,55 @@ async def start(msg: types.Message):
         db.update_subscription(msg.from_user.id, True)
 
 
-@dp.message_handler(commands=['mailing'])
+@dp.callback_query_handler(text = "admin_help")
+async def admin_help(call: types.CallbackQuery):
+    await call.message.edit_text(text=ah_text, reply_markup=delete, parse_mode = 'HTML')
+
+@dp.message_handler(commands='help')
+async def help(msg: types.Message):
+    if msg.from_user.id in ADMIN_ID:
+        if msg.chat.type != 'private':
+            await msg.answer("Помощь отправлена в лс!")
+            await bot.send_message(msg.from_user.id, "Основыные команды:\n/start - Начало\n/help - Получить данное сообщение", reply_markup = admin, parse_mode = 'HTML')
+        else:
+            await bot.send_message(msg.from_user.id, "Основыные команды:\n/start - Начало\n/help - Получить данное сообщение", reply_markup = admin, parse_mode = 'HTML')
+    else:
+        if msg.chat.type != 'private':
+            await msg.answer("Помощь отправлена в лс!")
+            await bot.send_message(msg.from_user.id, "Основыные команды:\n/start - Начало\n/help - Получить данное сообщение")
+        else:
+            await bot.send_message(msg.from_user.id, "Основыные команды:\n/start - Начало\n/help - Получить данное сообщение")
+
+
+@dp.message_handler(commands='deanon')
+async def deanon_user(message: types.Message):
+    if message.from_user.id in ADMIN_ID:
+        if message.chat.type == 'private':
+            await message.answer("Используйте эту команду в чате ответив на чье-то сообщение.")
+        else:
+            user_id = message.reply_to_message.from_user.id
+            first_name = "["+message.reply_to_message.from_user.first_name+"](tg://user?id="+str(user_id)+")"
+            cursor.execute("SELECT first_name, count, last_warned, message_text FROM warnings WHERE user_id = ?", (user_id,))
+            user = cursor.fetchone()
+            if user is None:
+                await bot.delete_message(message.chat.id, message.message_id)
+                await bot.send_message(message.from_user.id, text=f"User ID: *{user_id}*\nНикнейм: {first_name}\n\nНи одного нарушения на счету :)", reply_markup = delete, parse_mode="Markdown")
+            else:
+                await bot.delete_message(message.chat.id, message.message_id)
+                await bot.send_message(message.from_user.id, text=f"User ID: *{user_id}*\nНикнейм: {first_name}\nКол-во предупреждений: *{user[1]}*\n\nПоследнее предупреждение: *{user[2]}*\n\nСообщения:\n_{user[3]}_", reply_markup = delete, parse_mode="Markdown")
+    else:
+        return
+
+
+@dp.message_handler(commands='mailing')
 async def go(message: types.Message):
-    if msg.chat.type != 'private':
+    if message.chat.type != 'private':
         return
     else:
         if message.from_user.id in ADMIN_ID:
             await message.answer("Вы хотите отправить только текст или текст с фото?", reply_markup=kb_mailing)
         else:
             return
-
-
 
 
 @dp.callback_query_handler(text="back")
@@ -196,20 +186,27 @@ async def opshki(call: types.CallbackQuery):
     key = call.data
     await call.message.edit_text(f"{ent_info[key]}", reply_markup=keyboard, parse_mode = 'HTML', disable_web_page_preview=True)
 
-
+@dp.message_handler()
 async def badWordsFilter(message: types.Message):
-    bad_words = json.load(open('badword.json'))
-    text_words = {i.lower().translate(str.maketrans('', '', string.punctuation)) for i in message.text.split(' ')}
-    if text_words.intersection(set(bad_words)):
-        user_id = message.from_user.id
-        warning_count = get_warning_count(user_id)
-        increment_warning_count(user_id)
-        await message.reply("В данном чате нельзя использовать нецензурную лексику.")
-        if warning_count + 1 >= BAD_WORD_LIMIT:
-            await mute_user(message.chat.id, user_id)
-            await message.reply("Ты был замучен на {} дней за использование нецензурной лексики.".format(MUTE_DURATION))
+    if message.chat.type != 'private':
+        bad_words = json.load(open('badword.json'))
+        text_words = {i.lower().translate(str.maketrans('', '', string.punctuation)) for i in message.text.split(' ')}
+        if text_words.intersection(set(bad_words)):
+            user_id = message.from_user.id
+            first_name = message.from_user.first_name
+            message_text = message.text
+            warning_count = get_warning_count(user_id)
+            increment_warning_count(first_name, user_id, message_text)
+            await update_sheet()
+            await message.reply(f"В данном чате нельзя использовать нецензурную лексику.\nКол-во предупреждений: {warning_count + 1}")
+            if warning_count + 1 >= WARNING_LIMIT:
+                await warning_to_zero(user_id)
+                await mute_user(message.chat.id, user_id)
+                await message.reply("Ты был замучен на {} дней за использование нецензурной лексики.".format(MUTE_DURATION))
+    else:
+        return
 
-#ставит дефолт команды
+
 async def on_startup(dp):
     from set_commands import set_default_commands
     await set_default_commands(dp)

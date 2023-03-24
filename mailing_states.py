@@ -19,7 +19,7 @@ class Mailing(StatesGroup):
 @dp.callback_query_handler(text='stop', state=[Mailing.photo, Mailing.message, Mailing.message_txt])
 async def cancel_mailing(call: types.CallbackQuery, state: FSMContext):
     await state.finish()
-    await bot.send_message(call.from_user.id, 'Отменено', reply_markup = mailing_delete)
+    # await bot.send_message(call.from_user.id, 'Отменено', reply_markup = mailing_delete)
     await bot.delete_message(call.message.chat.id, call.message.message_id)
 
 
