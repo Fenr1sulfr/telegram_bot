@@ -1,9 +1,9 @@
 import asyncio
 import json
-import logging
-import string
-from time import sleep
+import os
+import time
 import aiogram.utils.markdown as md
+import sqlite3
 from aiogram import Bot, Dispatcher, types, executor
 from aiogram.types import ReplyKeyboardRemove, \
     ReplyKeyboardMarkup, KeyboardButton, \
@@ -16,17 +16,15 @@ from aiogram.types import ContentType
 from aiogram.types import InputMediaPhoto, InputMediaVideo, InputMediaAudio
 from aiogram.types import ParseMode
 from aiogram.utils import exceptions
-import sqlite3
-from infos import *
+from time import sleep
 from getAnswer import *
-from mailing_keyboard import *
-from mailing_states import *
 from app import *
-import os
 from datetime import datetime, timedelta
-import pandas as pd
-import matplotlib.pyplot as plt
-from warning_db import *
+from deanon.datab import *
+from deanon.warning_db import *
+from infos.infos import *
+from mailing.mailing_states import *
+from mailing.mailing_keyboard import *
 
 @dp.callback_query_handler(text = "delete")
 async def mailing_delete(call: types.CallbackQuery):
@@ -103,9 +101,10 @@ async def go(message: types.Message):
 @dp.callback_query_handler(text="back")
 async def back(call: types.CallbackQuery):
     kb_start = types.InlineKeyboardMarkup()
-    kb_start_gop = types.InlineKeyboardButton(text="Информация про ГОП", callback_data="GOP")
+    kb_start_gop = types.InlineKeyboardButton(text="Группы образовательных программ", callback_data="GOP")
     kb_start_faq = types.InlineKeyboardButton(text="Часто задаваемые вопросы", callback_data='faq')
-    kb_start.add(kb_start_gop, kb_start_faq)
+    kb_start.add(kb_start_gop)
+    kb_start.add(kb_start_faq)
     await call.message.edit_text("*Приветствие*!", reply_markup=kb_start)
 
 @dp.callback_query_handler(text="GOP")
@@ -122,12 +121,28 @@ async def op(call: types.CallbackQuery):
     kb_gop.add(global_kb_back)
     await call.message.edit_text("Выберите ГОП про который хотите узнать: ", reply_markup=kb_gop)
 
+
+def replacing(to_escape_msg):
+    escaped_msg = to_escape_msg.replace("-", "\\-").replace("+", "\\+").replace("[", "\\[").replace(".", "\\.").replace("**", "\\**")
+    return escaped_msg
+
 @dp.callback_query_handler(lambda call: call.data in ['it', 'cs', 'com', 'iiot', 'management', 'dj'])
 async def opshki(call: types.CallbackQuery):
     keyboard = InlineKeyboardMarkup()
     keyboard.add(global_kb_back_gop)
     key = call.data
-    await call.message.edit_text(f"{gop[key]}", reply_markup=keyboard, parse_mode = 'HTML')
+    if call.data == 'it':
+        start_time = time.time()
+        text = ''
+        text += replacing(getAnswer('ОП-шки', 'A1')) + '\n'
+        await call.message.edit_text(f"{text}", reply_markup=keyboard, parse_mode='MarkdownV2')
+        end_time = time.time()
+        await call.message.answer(f"Из таблицы:\nНачало: {start_time}\nКонец: {end_time}\nВремя: {end_time - start_time}")
+    if call.data == 'iiot':
+        start_time = time.time()
+        await call.message.edit_text(f"{gop[call.data]}", reply_markup=keyboard, parse_mode='HTML')
+        end_time = time.time()
+        await call.message.answer(f"Из файлов:\nНачало: {start_time}\nКонец: {end_time}\nВремя: {end_time - start_time}")
 
 
 @dp.callback_query_handler(text="faq")
@@ -208,7 +223,7 @@ async def badWordsFilter(message: types.Message):
 
 
 async def on_startup(dp):
-    from set_commands import set_default_commands
+    from other.set_commands import set_default_commands
     await set_default_commands(dp)
 
 if __name__ ==  '__main__':

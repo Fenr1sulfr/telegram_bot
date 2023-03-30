@@ -1,7 +1,7 @@
 from aiogram import Bot, Dispatcher, types, executor
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 import logging
-from datab import SQLighter
+from deanon.datab import SQLighter
 from datetime import datetime, timedelta
 import pygsheets
 
@@ -11,9 +11,9 @@ storage = MemoryStorage()
 dp = Dispatcher(bot, storage=MemoryStorage())
 # Включаем логирование, чтобы не пропустить важные сообщения
 logging.basicConfig(level=logging.INFO)
-db = SQLighter('db.db')
+db = SQLighter('deanon/db.db')
 ADMIN_ID = [448066464, 936574288]
 
-client = pygsheets.authorize()
+client = pygsheets.authorize(service_file=r"C:\Users\Maksi\Desktop\telegram_bot\other\aitubot-2a9c5a069c62.json")
 sh = client.open('AITU_Answers')
 worksheet = sh.worksheet_by_title("Заключенные")
