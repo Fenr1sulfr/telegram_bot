@@ -136,13 +136,13 @@ async def opshki(call: types.CallbackQuery):
         text = ''
         text += replacing(getAnswer('ОП-шки', 'A1')) + '\n'
         await call.message.edit_text(f"{text}", reply_markup=keyboard, parse_mode='MarkdownV2')
-        end_time = time.time()
-        await call.message.answer(f"Из таблицы:\nНачало: {start_time}\nКонец: {end_time}\nВремя: {end_time - start_time}")
+        # end_time = time.time()
+        # await call.message.answer(f"Из таблицы:\nНачало: {start_time}\nКонец: {end_time}\nВремя: {end_time - start_time}")
     if call.data == 'iiot':
-        start_time = time.time()
+        # start_time = time.time()
         await call.message.edit_text(f"{gop[call.data]}", reply_markup=keyboard, parse_mode='HTML')
-        end_time = time.time()
-        await call.message.answer(f"Из файлов:\nНачало: {start_time}\nКонец: {end_time}\nВремя: {end_time - start_time}")
+        # end_time = time.time()
+        # await call.message.answer(f"Из файлов:\nНачало: {start_time}\nКонец: {end_time}\nВремя: {end_time - start_time}")
 
 
 @dp.callback_query_handler(text="faq")
